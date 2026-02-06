@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt Style Market POC</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 작은 애니메이션 보정 */
+    .card-hover { transition: transform 180ms ease, box-shadow 180ms ease; }
+    .card-hover:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+    .thumb-zoom { transition: transform 240ms ease; }
+    .group:hover .thumb-zoom { transform: scale(1.06); }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="max-w-5xl mx-auto">
+    <!-- Hero -->
+    <section class="py-12 px-6 text-center">
+      <h1 class="text-3xl font-bold mb-3">전문가처럼 만들어보세요</h1>
+      <p class="text-gray-600">프롬프트요? 그런 건 몰라도 됩니다 😎</p>
+
+      <!-- Tabs -->
+      <div id="tabs" class="mt-6 flex flex-wrap items-center justify-center gap-2">
+        <button data-tab="전체" class="px-4 py-2 rounded-full border bg-gray-900 text-white">전체</button>
+        <button data-tab="엔터테인먼트" class="px-4 py-2 rounded-full border text-gray-700 hover:bg-gray-100">엔터테인먼트</button>
+        <button data-tab="브랜딩" class="px-4 py-2 rounded-full border text-gray-700 hover:bg-gray-100">브랜딩</button>
+        <button data-tab="사고방식" class="px-4 py-2 rounded-full border text-gray-700 hover:bg-gray-100">사고방식</button>
+        <button data-tab="대화" class="px-4 py-2 rounded-full border text-gray-700 hover:bg-gray-100">대화</button>
+      </div>
+
+      <div class="mt-4 text-sm text-gray-500">
+        사람을 고르듯, <span class="font-medium text-gray-700">스타일을 고르고</span> 바로 실행해보세요.
+      </div>
+    </section>
+
+    <!-- Cards -->
+    <section class="px-6 pb-12">
+      <div id="grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal" class="fixed inset-0 z-50 hidden">
+    <div id="overlay" class="absolute inset-0 bg-black/40"></div>
+
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="w-full max-w-3xl rounded-3xl bg-white shadow-xl overflow-hidden">
+        <div class="p-6 md:p-8 space-y-5">
+          <div class="flex items-start justify-between gap-4">
+            <div class="space-y-1">
+              <div id="mCategory" class="text-sm text-gray-500">카테고리</div>
+              <div id="mTitle" class="text-2xl font-bold leading-tight">타이틀</div>
+              <div id="mDesc" class="text-sm text-gray-600">설명</div>
+            </div>
+            <button id="closeBtn" class="px-3 py-2 rounded-full border text-sm hover:bg-gray-100">닫기</button>
+          </div>
+
+          <div class="rounded-2xl border p-4 md:p-5 bg-gray-50">
+            <div class="text-sm font-medium mb-1">안내</div>
+            <div class="text-sm text-gray-600">
+              프롬프트는 공개되지 않으며, 입력값을 기반으로 결과만 생성됩니다.
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Input -->
+            <div class="rounded-2xl border p-5 space-y-4">
+              <div class="text-lg font-semibold">입력</div>
+
+              <div id="textBlock" class="space-y-2 hidden">
+                <label class="text-sm font-medium">텍스트 입력</label>
+                <textarea id="textInput" class="w-full rounded-2xl border p-3 text-sm bg-white" rows="6" placeholder="원문을 입력하세요 (회의 메모, 문서, 초안 등)"></textarea>
+              </div>
+
+              <div id="imageBlock" class="space-y-2 hidden">
+                <label class="text-sm font-medium">이미지 업로드</label>
+                <div class="w-full h-36 rounded-2xl border bg-white flex items-center justify-center text-sm text-gray-400">
+                  이미지 업로드 영역
+                </div>
+                <input id="fileInput" type="file" accept="image/*" class="text-sm" />
+                <div class="text-xs text-gray-500">POC에서는 업로드만 시연하고, 결과는 더미로 표시합니다.</div>
+              </div>
+
+              <button id="runBtn" class="w-full py-2 rounded-xl bg-gray-900 text-white hover:bg-gray-800">이 스타일로 실행하기</button>
+              <div class="text-xs text-gray-500">* 데모 화면입니다. 실제 API 연결 시 결과가 실시간 생성됩니다.</div>
+            </div>
+
+            <!-- Result -->
+            <div class="rounded-2xl border p-5 space-y-4 bg-gray-50">
+              <div class="text-lg font-semibold">결과 미리보기</div>
+
+              <div id="resultImage" class="w-full h-64 rounded-2xl bg-white border flex items-center justify-center text-gray-400 hidden">
+                실행 후 결과가 표시됩니다
+              </div>
+
+              <div id="resultText" class="w-full rounded-2xl bg-white border p-4 space-y-3 hidden">
+                <div class="text-xs text-gray-500">(더미) 결과 예시</div>
+                <div class="space-y-2 text-sm">
+                  <div class="font-medium">핵심</div>
+                  <div class="text-gray-700" id="rKey">실행 후 결과가 표시됩니다</div>
+                  <div class="font-medium">리스크</div>
+                  <div class="text-gray-700" id="rRisk"></div>
+                  <div class="font-medium">다음 액션</div>
+                  <div class="text-gray-700" id="rNext"></div>
+                </div>
+              </div>
+
+              <div id="resultChat" class="rounded-2xl bg-white border p-4 space-y-3 hidden">
+                <div class="text-xs text-gray-500">(더미) 상담 질문 예시</div>
+                <div class="space-y-2">
+                  <div class="flex justify-start"><div class="max-w-[85%] rounded-2xl bg-gray-100 px-3 py-2 text-sm">지금 가장 불안한 지점이 ‘연락 빈도’ 자체인지, ‘관계의 의미’인지 먼저 구분해볼까요?</div></div>
+                  <div class="flex justify-start"><div class="max-w-[85%] rounded-2xl bg-gray-100 px-3 py-2 text-sm">상대가 바쁘다는 설명이 사실이라면, 당신이 안심하려면 어떤 행동이 최소로 필요해요?</div></div>
+                  <div class="flex justify-start"><div class="max-w-[85%] rounded-2xl bg-gray-100 px-3 py-2 text-sm">“내가 원하는 것”을 말할 때, 비난 없이 전달할 수 있는 한 문장을 만들어볼까요?</div></div>
+                </div>
+              </div>
+
+              <div class="text-xs text-gray-500">프롬프트 원문은 제공되지 않습니다.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Dummy data (POC) ---
+    const PROMPTS = [
+      {
+        id: "dance-meme",
+        title: "내 사진으로 밈/댄스 영상 만들어주는 스타일",
+        description: "사진 한 장으로 과장된 춤·표정·밈 영상 생성",
+        category: "엔터테인먼트",
+        kind: "image",
+        previewLabel: "🕺 밈/댄스",
+        thumbnail: "https://images.unsplash.com/photo-1547153760-18fc86324498?auto=format&fit=crop&w=1200&q=80",
+      },
+      {
+        id: "brand-ambassador",
+        title: "브랜드 앰배서더 화보 스타일",
+        description: "광고 컷처럼 정제된 인물 이미지 변환",
+        category: "브랜딩",
+        kind: "image",
+        previewLabel: "👔 화보",
+        thumbnail: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=1200&q=80",
+      },
+      {
+        id: "strategy-summary",
+        title: "대기업 전략기획 10년차가 쓰는 요약 방식",
+        description: "맥락 → 핵심 → 리스크 순으로 임원 보고용 요약",
+        category: "사고방식",
+        kind: "text",
+        previewLabel: "🧠 요약",
+        thumbnail: "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=80",
+      },
+      {
+        id: "webtoon-dialogue",
+        title: "웹툰 작가가 만든 대사 생성 스타일",
+        description: "설명은 줄이고 감정만 남기는 대사",
+        category: "사고방식",
+        kind: "text",
+        previewLabel: "✍️ 대사",
+        thumbnail: "https://images.unsplash.com/photo-1603575448365-153f093fd89f?auto=format&fit=crop&w=1200&q=80",
+      },
+      {
+        id: "dating-questions",
+        title: "연애 상담 잘하는 사람의 질문 방식",
+        description: "조언하지 않고 스스로 말하게 만드는 질문",
+        category: "대화",
+        kind: "chat",
+        previewLabel: "💬 질문",
+        thumbnail: "https://images.unsplash.com/photo-1520974735194-6c9f1c1fbc8a?auto=format&fit=crop&w=1200&q=80",
+      },
+      {
+        id: "editor-headline",
+        title: "콘텐츠 에디터의 제목 뽑는 방식",
+        description: "과장 없이 클릭을 부르는 한 줄",
+        category: "사고방식",
+        kind: "text",
+        previewLabel: "📰 제목",
+        thumbnail: "https://images.unsplash.com/photo-1519337265831-281ec6cc8514?auto=format&fit=crop&w=1200&q=80",
+      },
+    ];
+
+    const tabsEl = document.getElementById("tabs");
+    const gridEl = document.getElementById("grid");
+
+    const modalEl = document.getElementById("modal");
+    const overlayEl = document.getElementById("overlay");
+    const closeBtn = document.getElementById("closeBtn");
+    const runBtn = document.getElementById("runBtn");
+
+    const mCategory = document.getElementById("mCategory");
+    const mTitle = document.getElementById("mTitle");
+    const mDesc = document.getElementById("mDesc");
+
+    const textBlock = document.getElementById("textBlock");
+    const imageBlock = document.getElementById("imageBlock");
+    const textInput = document.getElementById("textInput");
+
+    const resultImage = document.getElementById("resultImage");
+    const resultText = document.getElementById("resultText");
+    const resultChat = document.getElementById("resultChat");
+
+    const rKey = document.getElementById("rKey");
+    const rRisk = document.getElementById("rRisk");
+    const rNext = document.getElementById("rNext");
+
+    let activeTab = "전체";
+    let selected = null;
+    let ran = false;
+
+    function ctaText(kind) {
+      if (kind === "image") return "이 스타일로 만들어보기";
+      if (kind === "chat") return "이 방식으로 대화하기";
+      return "이 사람처럼 해보기";
+    }
+
+    function renderTabs() {
+      const buttons = tabsEl.querySelectorAll("button[data-tab]");
+      buttons.forEach((btn) => {
+        const tab = btn.getAttribute("data-tab");
+        const on = tab === activeTab;
+        btn.className =
+          "px-4 py-2 rounded-full border text-sm transition " +
+          (on ? "bg-gray-900 text-white border-gray-900" : "text-gray-700 hover:bg-gray-100");
+      });
+    }
+
+    function cardHTML(p) {
+      return `
+        <div class="group rounded-3xl shadow-sm overflow-hidden bg-white card-hover" data-id="${p.id}">
+          <div class="p-4 space-y-3">
+            <div class="w-full h-40 rounded-2xl overflow-hidden bg-gray-100 relative">
+              <img
+                src="${p.thumbnail}"
+                alt="${p.previewLabel}"
+                class="w-full h-full object-cover thumb-zoom"
+                loading="lazy"
+                onerror="this.style.display='none'"
+              />
+              <div class="absolute inset-0 bg-black/10"></div>
+              <div class="absolute bottom-3 left-3">
+                <div class="px-3 py-1.5 rounded-xl bg-white/80 border text-sm">${p.previewLabel}</div>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="text-sm text-gray-500">${p.category}</div>
+              <div class="text-lg font-semibold">${p.title}</div>
+              <div class="text-sm text-gray-600">${p.description}</div>
+            </div>
+            <button class="w-full py-2 rounded-xl bg-gray-900 text-white hover:bg-gray-800" data-open="${p.id}">${ctaText(p.kind)}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderGrid() {
+      const list = activeTab === "전체" ? PROMPTS : PROMPTS.filter((p) => p.category === activeTab);
+      gridEl.innerHTML = list.map(cardHTML).join("");
+
+      // wire open handlers
+      gridEl.querySelectorAll("button[data-open]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const id = e.currentTarget.getAttribute("data-open");
+          openModal(id);
+        });
+      });
+    }
+
+    function openModal(id) {
+      selected = PROMPTS.find((p) => p.id === id) || null;
+      ran = false;
+      if (!selected) return;
+
+      mCategory.textContent = selected.category;
+      mTitle.textContent = selected.title;
+      mDesc.textContent = selected.description;
+
+      // reset blocks
+      textBlock.classList.add("hidden");
+      imageBlock.classList.add("hidden");
+      resultImage.classList.add("hidden");
+      resultText.classList.add("hidden");
+      resultChat.classList.add("hidden");
+      textInput.value = "";
+
+      if (selected.kind === "image") {
+        imageBlock.classList.remove("hidden");
+        resultImage.classList.remove("hidden");
+        resultImage.textContent = "실행 후 결과가 표시됩니다";
+        runBtn.textContent = "이 스타일로 실행하기";
+      } else if (selected.kind === "chat") {
+        textBlock.classList.remove("hidden");
+        textInput.placeholder = "상황을 적어주세요 (예: 요즘 연락 빈도가 줄어서 불안함)";
+        resultChat.classList.remove("hidden");
+        runBtn.textContent = "이 방식으로 실행하기";
+      } else {
+        textBlock.classList.remove("hidden");
+        textInput.placeholder = "원문을 입력하세요 (회의 메모, 문서, 초안 등)";
+        resultText.classList.remove("hidden");
+        rKey.textContent = "실행 후 결과가 표시됩니다";
+        rRisk.textContent = "";
+        rNext.textContent = "";
+        runBtn.textContent = "이 스타일로 실행하기";
+      }
+
+      modalEl.classList.remove("hidden");
+      document.body.classList.add("overflow-hidden");
+    }
+
+    function closeModal() {
+      modalEl.classList.add("hidden");
+      document.body.classList.remove("overflow-hidden");
+      selected = null;
+    }
+
+    function runDemo() {
+      if (!selected) return;
+      ran = true;
+
+      if (selected.kind === "image") {
+        resultImage.textContent = "(더미) 변환 결과 이미지";
+        return;
+      }
+
+      if (selected.kind === "chat") {
+        // chat is already shown as bubbles; add tiny feedback
+        runBtn.textContent = "실행 완료 (더미)";
+        setTimeout(() => (runBtn.textContent = "이 방식으로 실행하기"), 900);
+        return;
+      }
+
+      // text demo output
+      rKey.textContent = "현재 이슈의 본질은 비용 증가가 아니라, 의사결정 기준의 부재로 인한 반복 변경임";
+      rRisk.textContent = "기준 합의 없이 진행 시 일정/품질/비용 모두 변동성이 확대됨";
+      rNext.textContent = "(1) 의사결정 기준 3개 확정 (2) 범위 고정 후 재산정 (3) 공유 일정 합의";
+    }
+
+    // Tab behavior
+    tabsEl.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-tab]");
+      if (!btn) return;
+      activeTab = btn.getAttribute("data-tab");
+      renderTabs();
+      renderGrid();
+    });
+
+    overlayEl.addEventListener("click", closeModal);
+    closeBtn.addEventListener("click", closeModal);
+    runBtn.addEventListener("click", runDemo);
+
+    // ESC close
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !modalEl.classList.contains("hidden")) closeModal();
+    });
+
+    // init
+    renderTabs();
+    renderGrid();
+  </script>
+</body>
+</html>
